@@ -3,6 +3,8 @@ World of Warcraft addon to show your character's movement speed in WoW.
 
 Click and drag to move around.
 
+[Latest relase](https://github.com/diflartle/MoveSpeed/releases/tag/v1.0)
+
 ## Slash Commands
 ```/movespeed reset```
 This moves the frame to 0,0 (center of your screen)
