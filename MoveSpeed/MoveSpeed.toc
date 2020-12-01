@@ -1,4 +1,4 @@
-## Interface: 90000
+## Interface: 90002
 ## Title: |cFF00FF00MoveSpeed
 ## Notes: Click to drag the frame around.
 
