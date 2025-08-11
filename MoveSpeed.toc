@@ -1,0 +1,16 @@
+## Interface: 110200
+## Title: |cFF00FF00MoveSpeed
+## Author: Darganon
+## Version: v1.1.7
+## Notes: Click to drag the frame around.
+## OptionalDeps: LibDataBroker-1.1
+## IconTexture: Interface\AddOns\MoveSpeed\movesmall
+## Category: Other
+## Category-deDE: Anderes
+## Category-esES: Otros
+## Category-esMX: Otros
+## Category-frFR: Autre
+## Category-itIT: Altro
+## Category-ptBR: Outro
+
+movespeed.lua
