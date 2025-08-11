@@ -7,7 +7,7 @@ If you're standing still, it shows 0%. You can click and drag this frame anywher
 
 It has support for libdatabroker, so you can use it with titanpanel or whatever the kids use these days.
 
-[Latest relase](https://github.com/diflartle/MoveSpeed/releases/tag/v1.0.1)
+[Latest relase](https://www.curseforge.com/wow/addons/movespeed)
 
 ## Slash Commands
 ```/movespeed reset```
