@@ -56,10 +56,9 @@ C_Timer.NewTicker(0.2, function() -- Update every 0.2 seconds
 
     if lastSpeed ~= movespeed then
         lastSpeed = movespeed
-        local displayText = format(speedFormat, movespeed)
-        MySpeedFrame.text:SetText(displayText)
+        MySpeedFrame.text:SetFormattedText(speedFormat, movespeed)
         dataobject.value = movespeed
-        dataobject.text = displayText
+        dataobject.text = format(speedFormat, movespeed)
     end
 end)
 
