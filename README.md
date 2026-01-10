@@ -1,26 +1,28 @@
 # MoveSpeed
-World of Warcraft addon to show your character's movement speed in WoW.
 
-Click and drag to move around.
+A lightweight World of Warcraft addon to show your character's movement speed in WoW.
 
-If you're standing still, it shows 0%. You can click and drag this frame anywhere you want and it should stay there. To see the number change, move your character!
+### Features
 
-It has support for libdatabroker, so you can use it with titanpanel or whatever the kids use these days.
+- **Customization:** Change font size/color/decoration/position.
+- **Draggable:** Click and drag the frame to position it anywhere on your screen.
+- **Real-time Updates:** Displays 0% when stationary and updates instantly when moving.
+- **Data Broker Support:** Compatible with LibDataBroker (LDB) displays like TitanPanel.
+- **Dragonriding Support:** Accurately tracks speed while gliding.
 
 [Latest relase](https://www.curseforge.com/wow/addons/movespeed)
 
-## Slash Commands
-```/movespeed reset```
-This moves the frame to 0,0 (center of your screen)
+### Slash Commands
 
-```/movespeed bg``` This adds a background to the frame. I used this to see if it was overlapping another frame.
+Type `/movespeed` followed by a command to configure the addon without opening the settings menu.
 
-```/movespeed bgoff``` This removes the background we added earlier.
-
-```/movespeed small``` Makes the text smaller.
-
-```/movespeed large``` Makes the text larger.
-
-```/movespeed hide``` Hides the frame.
-
-```/movespeed show``` Brings the frame back!
+| Command      | Description                                                       |
+| ------------ | ----------------------------------------------------------------- |
+| **`reset`**  | Resets the frame to the center of the screen (0,0).               |
+| **`bg`**     | Enables the black background (useful for visibility/positioning). |
+| **`bgoff`**  | Disables the background (transparent).                            |
+| **`small`**  | Sets font size to small (12).                                     |
+| **`medium`** | Sets font size to medium (16).                                    |
+| **`large`**  | Sets font size to large (20).                                     |
+| **`hide`**   | Hides the frame.                                                  |
+| **`show`**   | Brings the frame back!                                            |
