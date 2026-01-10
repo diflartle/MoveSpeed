@@ -11,3 +11,7 @@ ignore:
   - .pkgmeta
   - .gitignore
   - .github\workflows\release.yml
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
