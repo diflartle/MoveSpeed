@@ -154,8 +154,13 @@ local function SetupOptions()
     -- Text Color Picker
     local function ShowColorPicker()
         local info = {}
-        info.r, info.g, info.b, info.opacity = MoveSpeedDB.textColor.r, MoveSpeedDB.textColor.g, MoveSpeedDB.textColor.b,
-            MoveSpeedDB.textColor.a
+        -- Default to 1 (100%) if .a is missing
+        local c = MoveSpeedDB.textColor or { r = 1, g = 1, b = 1, a = 1 }
+        info.r = c.r or 1
+        info.g = c.g or 1
+        info.b = c.b or 1
+        info.opacity = c.a or 1
+
         info.hasOpacity = true
 
         info.swatchFunc = function()
@@ -164,11 +169,14 @@ local function SetupOptions()
             MoveSpeedDB.textColor = { r = r, g = g, b = b, a = a }
             UpdateVisuals()
         end
+
         info.opacityFunc = info.swatchFunc
+
         info.cancelFunc = function(restore)
             MoveSpeedDB.textColor = { r = restore.r, g = restore.g, b = restore.b, a = restore.opacity }
             UpdateVisuals()
         end
+
         ColorPickerFrame:SetupColorPickerAndShow(info)
     end
 
