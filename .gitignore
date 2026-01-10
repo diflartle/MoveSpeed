@@ -1,0 +1,6 @@
+# Ignore the Libs folder (managed by packager)
+Libs/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
