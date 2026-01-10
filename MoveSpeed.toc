@@ -13,6 +13,7 @@
 ## Category-frFR: Autre
 ## Category-itIT: Altro
 ## Category-ptBR: Outro
+## X-Curse-Project-ID: 412676
 
 # Libraries
 Libs\LibStub\LibStub.lua
