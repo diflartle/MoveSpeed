@@ -1,9 +1,13 @@
+package-as: MoveSpeed
+
 externals:
-  Libs/LibStub:
-    url: https://repos.curseforge.com/wow/libstub/trunk
+  Libs/LibStub: https://repos.curseforge.com/wow/libstub/trunk
+  Libs/CallbackHandler-1.0: https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0
+  Libs/LibDataBroker-1.1: https://github.com/tekkub/libdatabroker-1-1
 
-  Libs/CallbackHandler-1.0:
-    url: https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0
-
-  Libs/LibDataBroker-1.1:
-    url: https://github.com/tekkub/libdatabroker-1-1
+ignore:
+  - README.md
+  - LICENSE
+  - .pkgmeta
+  - .gitignore
+  - .github\workflows\release.yml
