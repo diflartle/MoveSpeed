@@ -1,12 +1,14 @@
 -- 1. Constants & Locals
 local addonName = ...
 local C_PlayerInfo, GetUnitSpeed = C_PlayerInfo, GetUnitSpeed
-local format, floor, max = format, math.floor, math.max
+local format = format
 local CreateFrame, UIParent = CreateFrame, UIParent
-
-local BASE_MOVEMENT_SPEED = BASE_MOVEMENT_SPEED
+local floor, max = math.floor, math.max
+local BASE_MOVEMENT_SPEED = BASE_MOVEMENT_SPEED or 7
+local GetGlidingInfo = C_PlayerInfo and C_PlayerInfo.GetGlidingInfo
 local speedFormat = "%d%%"
 local iconPath = "Interface\\Icons\\Inv_Pet_Speedy"
+local categoryID
 
 -- Default Settings
 local defaults = {
@@ -17,18 +19,20 @@ local defaults = {
     fontFlag = "OUTLINE",
     fontFamily = "FRIZQT__.TTF",
     textColor = { r = 1, g = 1, b = 1, a = 1 },
+    updateRate = 0.1,
 }
 
 -- 2. Helper Functions
+
 local function round(x) return floor(x + 0.5) end
 
 local function GetSpeed()
     local currentSpeed = GetUnitSpeed("player")
     local forwardSpeed = 0
 
-    -- Check if the API exists first (Dragonriding check)
-    if C_PlayerInfo and C_PlayerInfo.GetGlidingInfo then
-        local isGliding, _, fSpeed = C_PlayerInfo.GetGlidingInfo()
+    -- Only call if API exists, avoids table lookup every tick
+    if GetGlidingInfo then
+        local isGliding, _, fSpeed = GetGlidingInfo()
         if isGliding and fSpeed then
             forwardSpeed = fSpeed
         end
@@ -77,7 +81,8 @@ local function UpdateVisuals()
     end
 
     -- Apply font
-    local fontPath = "Fonts\\" .. MoveSpeedDB.fontFamily
+    local family = MoveSpeedDB.fontFamily or defaults.fontFamily
+    local fontPath = "Fonts\\" .. family
     local fontFlag = MoveSpeedDB.fontFlag == "" and nil or MoveSpeedDB.fontFlag
     f.text:SetFont(fontPath, MoveSpeedDB.fontSize, fontFlag)
 
@@ -91,6 +96,36 @@ local function UpdateVisuals()
     f:ClearAllPoints()
     local pos = MoveSpeedDB.position or defaults.position
     f:SetPoint(unpack(pos))
+end
+
+local ticker
+local lastSpeed = -1
+
+function StartTicker()
+    if ticker then
+        ticker:Cancel()
+        ticker = nil
+    end
+
+    ticker = C_Timer.NewTicker(MoveSpeedDB.updateRate or defaults.updateRate, function()
+        if not (MoveSpeedDB.showFrame or f.dataobject) then return end
+
+        local movespeed = GetSpeed()
+        if lastSpeed ~= movespeed then
+            lastSpeed = movespeed
+            local str = format("%d%%", movespeed)
+
+            if MoveSpeedDB.showFrame then
+                f.text:SetText(str)
+                f:SetWidth(max(50, f.text:GetStringWidth()))
+            end
+
+            if f.dataobject then
+                f.dataobject.value = movespeed
+                f.dataobject.text = str
+            end
+        end
+    end)
 end
 
 -- 4. Settings Panel (Retail Only)
@@ -107,6 +142,35 @@ local function SetupOptions()
     showSetting:SetValueChangedCallback(function() UpdateVisuals() end)
     Settings.CreateCheckbox(category, showSetting, "Toggle the MoveSpeed frame.")
 
+    -- Update Rate Dropdown
+    local function GetUpdateRateOptions()
+        local container = Settings.CreateControlTextContainer()
+        container:Add(0.1, "Fast (0.10s)")
+        container:Add(0.20, "Normal (0.20s)")
+        container:Add(0.5, "Slow (0.50s)")
+        return container:GetData()
+    end
+
+    local updateRateSetting = Settings.RegisterAddOnSetting(
+        category,
+        "MoveSpeed_UpdateRate",
+        "updateRate",
+        MoveSpeedDB,
+        Settings.VarType.Number,
+        "Update Rate",
+        0.10
+    )
+    updateRateSetting:SetValueChangedCallback(function()
+        StartTicker()
+        UpdateVisuals()
+    end)
+
+    Settings.CreateDropdown(
+        category,
+        updateRateSetting,
+        GetUpdateRateOptions,
+        "Choose how often movement speed updates."
+    )
     -- Background Checkbox
     local bgSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_Background", "background", MoveSpeedDB,
         Settings.VarType.Boolean, "Enable Background", true)
@@ -229,6 +293,15 @@ local function HandleSlashCommands(msg)
         MoveSpeedDB.showFrame = true
         UpdateVisuals()
         print("|cFF00FF00MoveSpeed:|r Frame shown.")
+    elseif cmd:match("^rate%s+[%d%.]+") then
+        local num = tonumber(cmd:match("[%d%.]+"))
+        if num and num >= 0.05 and num <= 1.0 then
+            MoveSpeedDB.updateRate = num
+            StartTicker()
+            print("|cFF00FF00MoveSpeed:|r Update rate set to " .. num .. " seconds.")
+        else
+            print("|cFFFF0000MoveSpeed:|r Invalid rate. Use 0.05 to 1.0")
+        end
     else
         -- If Retail, open settings. If Classic, show help.
         if Settings and Settings.OpenToCategory and categoryID then
@@ -243,6 +316,7 @@ local function HandleSlashCommands(msg)
             print("  /movespeed large  - Large font")
             print("  /movespeed hide   - Hide frame")
             print("  /movespeed show   - Show frame")
+            print("  /movespeed rate <seconds>  - Set update rate (0.05–1.0)")
         end
     end
 end
@@ -279,27 +353,5 @@ loader:SetScript("OnEvent", function(self)
     -- Register Slash Commands
     SLASH_MOVESPEED1 = "/movespeed"
     SlashCmdList["MOVESPEED"] = HandleSlashCommands
-
-    -- Start Ticker
-    local lastSpeed = -1
-    C_Timer.NewTicker(0.1, function()
-        -- Optimization: If nobody is watching, don't calculate
-        if not (MoveSpeedDB.showFrame or f.dataobject) then return end
-
-        local movespeed = GetSpeed()
-        if lastSpeed ~= movespeed then
-            lastSpeed = movespeed
-            local str = format(speedFormat, movespeed)
-
-            if MoveSpeedDB.showFrame then
-                f.text:SetText(str)
-                f:SetWidth(max(50, f.text:GetStringWidth()))
-            end
-
-            if f.dataobject then
-                f.dataobject.value = movespeed
-                f.dataobject.text = str
-            end
-        end
-    end)
+    StartTicker()
 end)
