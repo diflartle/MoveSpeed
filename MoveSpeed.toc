@@ -14,6 +14,7 @@
 ## Category-itIT: Altro
 ## Category-ptBR: Outro
 ## X-Curse-Project-ID: 412676
+## X-Wago-ID: RNLk2eGo
 
 # Libraries
 Libs\LibStub\LibStub.lua
