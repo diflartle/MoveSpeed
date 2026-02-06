@@ -12,7 +12,11 @@ I do not know why they ever took this away from us.
 - **Data Broker Support:** Compatible with LibDataBroker (LDB) displays like TitanPanel.
 - **Dragonriding Support:** Accurately tracks speed while gliding.
 
-**[Download Latest Release](https://www.curseforge.com/wow/addons/movespeed)**
+**Download Latest Release**
+
+[Curseforge](https://www.curseforge.com/wow/addons/movespeed)
+
+[Wago](https://addons.wago.io/addons/movespeed)
 
 ### Slash Commands
 
