@@ -38,7 +38,17 @@ local function GetSpeed()
         end
     end
 
-    return round(max(currentSpeed, forwardSpeed) / BASE_MOVEMENT_SPEED * 100)
+    -- Use pcall to safely attempt math.
+    -- If you're in combat, blizzard doesn't want to do math on your movement speed. Thanks blizzard, you've saved raiding.
+    local success, result = pcall(function()
+        return round(max(currentSpeed, forwardSpeed) / BASE_MOVEMENT_SPEED * 100)
+    end)
+
+    if success then
+        return result
+    else
+        return nil -- Return nil to indicate the speed is currently a secret
+    end
 end
 
 -- 3. UI Setup
@@ -110,10 +120,16 @@ function StartTicker()
     ticker = C_Timer.NewTicker(MoveSpeedDB.updateRate or defaults.updateRate, function()
         if not (MoveSpeedDB.showFrame or f.dataobject) then return end
 
-        local movespeed = GetSpeed()
-        if lastSpeed ~= movespeed then
-            lastSpeed = movespeed
-            local str = format("%d%%", movespeed)
+        local movespeed = GetSpeed() -- Returns the speed number, or nil if restricted
+
+        -- Use the number if we have it, otherwise use a placeholder state identifier
+        local currentState = movespeed or "secret"
+
+        -- Only update the UI if the state or speed has actually changed
+        if lastSpeed ~= currentState then
+            lastSpeed = currentState
+
+            local str = movespeed and format("%d%%", movespeed) or "??%"
 
             if MoveSpeedDB.showFrame then
                 f.text:SetText(str)
@@ -121,7 +137,8 @@ function StartTicker()
             end
 
             if f.dataobject then
-                f.dataobject.value = movespeed
+                -- LDB displays usually expect the 'value' field to remain a number
+                f.dataobject.value = movespeed or 0
                 f.dataobject.text = str
             end
         end
