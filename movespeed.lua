@@ -6,9 +6,24 @@ local CreateFrame, UIParent = CreateFrame, UIParent
 local floor, max = math.floor, math.max
 local BASE_MOVEMENT_SPEED = BASE_MOVEMENT_SPEED or 7
 local GetGlidingInfo = C_PlayerInfo and C_PlayerInfo.GetGlidingInfo
+local AbbreviateNumbers = AbbreviateNumbers
 local speedFormat = "%d%%"
 local iconPath = "Interface\\Icons\\Inv_Pet_Speedy"
 local categoryID
+
+-- Thanks Veyska on Curseforge, and NinjaRobot on the discord.
+-- See: https://warcraft.wiki.gg/wiki/API_AbbreviateNumbers
+local SPEED_ABBREV_OPTIONS = {
+    breakpointData = {
+        {
+            breakpoint = 0,
+            abbreviation = "%",
+            significandDivisor = BASE_MOVEMENT_SPEED / 100, -- 0.07
+            fractionDivisor = 1,
+            abbreviationIsGlobal = false,
+        },
+    },
+}
 
 -- Default Settings
 local defaults = {
@@ -24,31 +39,18 @@ local defaults = {
 
 -- 2. Helper Functions
 
-local function round(x) return floor(x + 0.5) end
-
-local function GetSpeed()
+local function GetSpeedString()
     local currentSpeed = GetUnitSpeed("player")
-    local forwardSpeed = 0
+    local speed = currentSpeed
 
-    -- Only call if API exists, avoids table lookup every tick
     if GetGlidingInfo then
         local isGliding, _, fSpeed = GetGlidingInfo()
-        if isGliding and fSpeed then
-            forwardSpeed = fSpeed
+        if isGliding and fSpeed and fSpeed > 0 then
+            speed = fSpeed
         end
     end
 
-    -- Use pcall to safely attempt math.
-    -- If you're in combat, blizzard doesn't want to do math on your movement speed. Thanks blizzard, you've saved raiding.
-    local success, result = pcall(function()
-        return round(max(currentSpeed, forwardSpeed) / BASE_MOVEMENT_SPEED * 100)
-    end)
-
-    if success then
-        return result
-    else
-        return nil -- Return nil to indicate the speed is currently a secret
-    end
+    return AbbreviateNumbers(speed, SPEED_ABBREV_OPTIONS)
 end
 
 -- 3. UI Setup
@@ -109,7 +111,6 @@ local function UpdateVisuals()
 end
 
 local ticker
-local lastSpeed = -1
 
 function StartTicker()
     if ticker then
@@ -120,27 +121,17 @@ function StartTicker()
     ticker = C_Timer.NewTicker(MoveSpeedDB.updateRate or defaults.updateRate, function()
         if not (MoveSpeedDB.showFrame or f.dataobject) then return end
 
-        local movespeed = GetSpeed() -- Returns the speed number, or nil if restricted
+        local str = GetSpeedString()
 
-        -- Use the number if we have it, otherwise use a placeholder state identifier
-        local currentState = movespeed or "secret"
+        if MoveSpeedDB.showFrame then
+            f.text:SetText(str)
+            f:SetWidth(max(50, MoveSpeedDB.fontSize * 4))
+        end
 
-        -- Only update the UI if the state or speed has actually changed
-        if lastSpeed ~= currentState then
-            lastSpeed = currentState
-
-            local str = movespeed and format("%d%%", movespeed) or "??%"
-
-            if MoveSpeedDB.showFrame then
-                f.text:SetText(str)
-                f:SetWidth(max(50, f.text:GetStringWidth()))
-            end
-
-            if f.dataobject then
-                -- LDB displays usually expect the 'value' field to remain a number
-                f.dataobject.value = movespeed or 0
-                f.dataobject.text = str
-            end
+        if f.dataobject then
+            f.dataobject.text = nil
+            f.dataobject.text = str
+            f.dataobject.value = 0
         end
     end)
 end
@@ -345,7 +336,7 @@ if ldb then
         type = "data source", icon = iconPath, label = "MoveSpeed", text = "0%", value = 0,
     })
     dataobject.OnTooltipShow = function(tooltip)
-        tooltip:AddLine(format(speedFormat, GetSpeed()))
+        tooltip:AddLine(GetSpeedString())
     end
     -- Link LDB object to updater
     f.dataobject = dataobject
