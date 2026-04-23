@@ -1,5 +1,5 @@
 # Changelog
 
-Removed all math from the secret values and loaded it into the native AbbreviateData API. This lets us do the same math, but more complicated. Full functionality is restored.
-
-LDB support is working (I tested it with ElvUI's datatext and it worked.)
+- Removed all math from the secret values and loaded it into the native AbbreviateData API. This lets us do the same math, but more complicated. Full functionality is restored.
+- LDB support is working (I tested it with ElvUI's datatext and it worked.)
+- Also fixed classic, and adjusted the math so 200% is 200% again. It will be wrong at extremely high speeds, if you get over 10,000% let me know how!

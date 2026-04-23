@@ -1,29 +1,16 @@
 -- 1. Constants & Locals
 local addonName = ...
+local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 local C_PlayerInfo, GetUnitSpeed = C_PlayerInfo, GetUnitSpeed
+local GetSpeedString
 local format = format
 local CreateFrame, UIParent = CreateFrame, UIParent
 local floor, max = math.floor, math.max
 local BASE_MOVEMENT_SPEED = BASE_MOVEMENT_SPEED or 7
 local GetGlidingInfo = C_PlayerInfo and C_PlayerInfo.GetGlidingInfo
 local AbbreviateNumbers = AbbreviateNumbers
-local speedFormat = "%d%%"
 local iconPath = "Interface\\Icons\\Inv_Pet_Speedy"
 local categoryID
-
--- Thanks Veyska on Curseforge, and NinjaRobot on the discord.
--- See: https://warcraft.wiki.gg/wiki/API_AbbreviateNumbers
-local SPEED_ABBREV_OPTIONS = {
-    breakpointData = {
-        {
-            breakpoint = 0,
-            abbreviation = "%",
-            significandDivisor = BASE_MOVEMENT_SPEED / 100, -- 0.07
-            fractionDivisor = 1,
-            abbreviationIsGlobal = false,
-        },
-    },
-}
 
 -- Default Settings
 local defaults = {
@@ -39,18 +26,40 @@ local defaults = {
 
 -- 2. Helper Functions
 
-local function GetSpeedString()
-    local currentSpeed = GetUnitSpeed("player")
-    local speed = currentSpeed
+if isRetail then
+    -- Thanks Veyska on Curseforge, and NinjaRobot on the discord.
+    -- See: https://warcraft.wiki.gg/wiki/API_AbbreviateNumbers
+    local SPEED_ABBREV_OPTIONS = {
+        breakpointData = {
+            {
+                breakpoint = 0,
+                abbreviation = "%",
+                significandDivisor = 0.0699, --BASE_MOVEMENT_SPEED / 100, -- 0.07
+                fractionDivisor = 1,
+                abbreviationIsGlobal = false,
+            },
+        },
+    }
 
-    if GetGlidingInfo then
-        local isGliding, _, fSpeed = GetGlidingInfo()
-        if isGliding and fSpeed and fSpeed > 0 then
-            speed = fSpeed
+    GetSpeedString = function()
+        local speed = GetUnitSpeed("player")
+
+        if GetGlidingInfo then
+            local isGliding, _, fSpeed = GetGlidingInfo()
+            if isGliding and fSpeed and fSpeed > 0 then
+                speed = fSpeed
+            end
         end
-    end
 
-    return AbbreviateNumbers(speed, SPEED_ABBREV_OPTIONS)
+        return AbbreviateNumbers(speed, SPEED_ABBREV_OPTIONS)
+    end
+else -- Classic
+    local function round(x) return floor(x + 0.5) end
+
+    GetSpeedString = function()
+        local speed = GetUnitSpeed("player")
+        return format("%d%%", round(speed / BASE_MOVEMENT_SPEED * 100))
+    end
 end
 
 -- 3. UI Setup
@@ -111,7 +120,7 @@ local function UpdateVisuals()
 end
 
 local ticker
-
+local StartTicker
 function StartTicker()
     if ticker then
         ticker:Cancel()
@@ -129,7 +138,9 @@ function StartTicker()
         end
 
         if f.dataobject then
-            f.dataobject.text = nil
+            if isRetail then
+                f.dataobject.text = nil
+            end
             f.dataobject.text = str
             f.dataobject.value = 0
         end

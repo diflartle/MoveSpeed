@@ -1,7 +1,7 @@
 ## Interface: 120005, 120000, 50503, 40402, 30405, 38000, 20504, 20505, 11508
 ## Title: |cFF00FF00MoveSpeed
 ## Author: Darganon
-## Version: 2.0.4
+## Version: 2.0.5
 ## Notes: Click to drag the frame around.
 ## SavedVariables: MoveSpeedDB
 ## OptionalDeps: LibDataBroker-1.1
