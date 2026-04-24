@@ -1,5 +1,3 @@
 # Changelog
 
-- Removed all math from the secret values and loaded it into the native AbbreviateData API. This lets us do the same math, but more complicated. Full functionality is restored.
-- LDB support is working (I tested it with ElvUI's datatext and it worked.)
-- Also fixed classic, and adjusted the math so 200% is 200% again. It will be wrong at extremely high speeds, if you get over 10,000% let me know how!
+- Investigated the LDB issues. Added an option to show ---% in LDB during combat for compatibility with display addons like Bazooka. Enabled by default. The main MoveSpeed frame still shows live speed in combat. If you use ElvUI, Arcana with fixed width, or another LDB display that supports live combat updates and want the old behavior, disable "Show ---% in LDB during combat" in settings or use /movespeed liveldb. If anything else is weird please let me know, I don't use LDB at all, but I am interested in making sure it is as compatible and correct as possible.

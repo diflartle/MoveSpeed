@@ -22,6 +22,7 @@ local defaults = {
     fontFamily = "FRIZQT__.TTF",
     textColor = { r = 1, g = 1, b = 1, a = 1 },
     updateRate = 0.1,
+    safeLDBInCombat = true,
 }
 
 -- 2. Helper Functions
@@ -138,10 +139,14 @@ function StartTicker()
         end
 
         if f.dataobject then
-            if isRetail then
-                f.dataobject.text = nil
+            if MoveSpeedDB.safeLDBInCombat and InCombatLockdown() then
+                f.dataobject.text = "---%"
+            else
+                if isRetail then
+                    f.dataobject.text = nil
+                end
+                f.dataobject.text = str
             end
-            f.dataobject.text = str
             f.dataobject.value = 0
         end
     end)
@@ -190,6 +195,15 @@ local function SetupOptions()
         GetUpdateRateOptions,
         "Choose how often movement speed updates."
     )
+
+    -- Safe LDB in Combat Checkbox
+    local safeLDBSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_SafeLDBInCombat",
+        "safeLDBInCombat", MoveSpeedDB,
+        Settings.VarType.Boolean, "Show ---% in LDB during combat", true)
+    safeLDBSetting:SetValueChangedCallback(function() UpdateVisuals() end)
+    Settings.CreateCheckbox(category, safeLDBSetting,
+        "If enabled, the LDB display (Bazooka, ButtonBin, etc.) shows '---%' during combat instead of live speed. This prevents display issues in some LDB display addons. The main MoveSpeed frame always shows live speed regardless.")
+
     -- Background Checkbox
     local bgSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_Background", "background", MoveSpeedDB,
         Settings.VarType.Boolean, "Enable Background", true)
@@ -321,6 +335,12 @@ local function HandleSlashCommands(msg)
         else
             print("|cFFFF0000MoveSpeed:|r Invalid rate. Use 0.05 to 1.0")
         end
+    elseif cmd == "safeldb" then
+        MoveSpeedDB.safeLDBInCombat = true
+        print("|cFF00FF00MoveSpeed:|r LDB will show '---%' during combat (compatible with all displays).")
+    elseif cmd == "liveldb" then
+        MoveSpeedDB.safeLDBInCombat = false
+        print("|cFF00FF00MoveSpeed:|r LDB will show live speed during combat (may break some displays like Bazooka).")
     else
         -- If Retail, open settings. If Classic, show help.
         if Settings and Settings.OpenToCategory and categoryID then
@@ -336,6 +356,8 @@ local function HandleSlashCommands(msg)
             print("  /movespeed hide   - Hide frame")
             print("  /movespeed show   - Show frame")
             print("  /movespeed rate <seconds>  - Set update rate (0.05–1.0)")
+            print("  /movespeed safeldb  - Show ---% in LDB during combat")
+            print("  /movespeed liveldb  - Show live speed in LDB during combat")
         end
     end
 end
