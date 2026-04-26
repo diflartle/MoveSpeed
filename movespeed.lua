@@ -139,12 +139,12 @@ function StartTicker()
         end
 
         if f.dataobject then
+            if isRetail then
+                f.dataobject.text = nil -- always clear first to avoid LDB secret comparison
+            end
             if MoveSpeedDB.safeLDBInCombat and InCombatLockdown() then
                 f.dataobject.text = "---%"
             else
-                if isRetail then
-                    f.dataobject.text = nil
-                end
                 f.dataobject.text = str
             end
             f.dataobject.value = 0

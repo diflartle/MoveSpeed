@@ -1,3 +1,3 @@
 # Changelog
 
-- Investigated the LDB issues. Added an option to show ---% in LDB during combat for compatibility with display addons like Bazooka. Enabled by default. The main MoveSpeed frame still shows live speed in combat. If you use ElvUI, Arcana with fixed width, or another LDB display that supports live combat updates and want the old behavior, disable "Show ---% in LDB during combat" in settings or use /movespeed liveldb. If anything else is weird please let me know, I don't use LDB at all, but I am interested in making sure it is as compatible and correct as possible.
+- Fix for taint in LDB scenarios. Should clear the value before sending a non-secret value thereby removing the comparison.
