@@ -1,7 +1,7 @@
 -- 1. Constants & Locals
 local addonName = ...
 local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
-local C_PlayerInfo, GetUnitSpeed = C_PlayerInfo, GetUnitSpeed
+local C_PlayerInfo, GetUnitSpeed, UnitInVehicle = C_PlayerInfo, GetUnitSpeed, UnitInVehicle
 local GetSpeedString
 local format = format
 local CreateFrame, UIParent = CreateFrame, UIParent
@@ -43,8 +43,8 @@ if isRetail then
     }
 
     GetSpeedString = function()
-        local speed = GetUnitSpeed("player")
-
+        local unit = UnitInVehicle("player") and "vehicle" or "player"
+        local speed = GetUnitSpeed(unit)
         if GetGlidingInfo then
             local isGliding, _, fSpeed = GetGlidingInfo()
             if isGliding and fSpeed and fSpeed > 0 then
@@ -58,7 +58,8 @@ else -- Classic
     local function round(x) return floor(x + 0.5) end
 
     GetSpeedString = function()
-        local speed = GetUnitSpeed("player")
+        local unit = UnitInVehicle("player") and "vehicle" or "player"
+        local speed = GetUnitSpeed(unit)
         return format("%d%%", round(speed / BASE_MOVEMENT_SPEED * 100))
     end
 end
@@ -154,8 +155,6 @@ end
 
 -- 4. Settings Panel (Retail Only)
 local function SetupOptions()
-    -- Classic check: Settings API doesn't exist in Vanilla/Wrath/Cata exactly the same way
-    -- or simply isn't needed if we rely on slash commands.
     if not Settings or not Settings.RegisterVerticalLayoutCategory then return end
 
     local category, layout = Settings.RegisterVerticalLayoutCategory("MoveSpeed")
@@ -251,7 +250,6 @@ local function SetupOptions()
     -- Text Color Picker
     local function ShowColorPicker()
         local info = {}
-        -- Default to 1 (100%) if .a is missing
         local c = MoveSpeedDB.textColor or { r = 1, g = 1, b = 1, a = 1 }
         info.r = c.r or 1
         info.g = c.g or 1
@@ -342,22 +340,21 @@ local function HandleSlashCommands(msg)
         MoveSpeedDB.safeLDBInCombat = false
         print("|cFF00FF00MoveSpeed:|r LDB will show live speed during combat (may break some displays like Bazooka).")
     else
-        -- If Retail, open settings. If Classic, show help.
         if Settings and Settings.OpenToCategory and categoryID then
             Settings.OpenToCategory(categoryID)
         else
             print("|cFF00FF00MoveSpeed Commands:|r")
-            print("  /movespeed reset  - Reset position")
-            print("  /movespeed bg     - Show background")
-            print("  /movespeed bgoff  - Hide background")
-            print("  /movespeed small  - Small font")
+            print("  /movespeed reset   - Reset position")
+            print("  /movespeed bg      - Show background")
+            print("  /movespeed bgoff   - Hide background")
+            print("  /movespeed small   - Small font")
             print("  /movespeed medium  - Medium font")
-            print("  /movespeed large  - Large font")
-            print("  /movespeed hide   - Hide frame")
-            print("  /movespeed show   - Show frame")
+            print("  /movespeed large   - Large font")
+            print("  /movespeed hide    - Hide frame")
+            print("  /movespeed show    - Show frame")
             print("  /movespeed rate <seconds>  - Set update rate (0.05–1.0)")
-            print("  /movespeed safeldb  - Show ---% in LDB during combat")
-            print("  /movespeed liveldb  - Show live speed in LDB during combat")
+            print("  /movespeed safeldb   - Show ---% in LDB during combat")
+            print("  /movespeed liveldb   - Show live speed in LDB during combat")
         end
     end
 end
@@ -371,7 +368,6 @@ if ldb then
     dataobject.OnTooltipShow = function(tooltip)
         tooltip:AddLine(GetSpeedString())
     end
-    -- Link LDB object to updater
     f.dataobject = dataobject
 end
 
@@ -379,7 +375,6 @@ end
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("PLAYER_LOGIN")
 loader:SetScript("OnEvent", function(self)
-    -- Initialize DB
     if not MoveSpeedDB then MoveSpeedDB = {} end
     for k, v in pairs(defaults) do
         if MoveSpeedDB[k] == nil then MoveSpeedDB[k] = v end
@@ -387,11 +382,9 @@ loader:SetScript("OnEvent", function(self)
 
     UpdateVisuals()
 
-    -- Setup Options (Retail Only) & Capture ID for slash command
     local category = SetupOptions()
     if category then categoryID = category:GetID() end
 
-    -- Register Slash Commands
     SLASH_MOVESPEED1 = "/movespeed"
     SlashCmdList["MOVESPEED"] = HandleSlashCommands
     StartTicker()
