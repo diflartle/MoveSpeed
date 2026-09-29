@@ -1,3 +1,5 @@
 # Changelog
 
-- Added TOC for Forever. Probably won't update it again until it comes out.
+- Added Lock & Clickthrough support (Thanks PapSolDragon!)
+- Added Text Alignment support (Thanks PapSolDragon!)
+- Small LDB optimization.

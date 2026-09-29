@@ -4,7 +4,7 @@ local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 local C_PlayerInfo, GetUnitSpeed, UnitInVehicle = C_PlayerInfo, GetUnitSpeed, UnitInVehicle
 local GetSpeedString
 local format = format
-local CreateFrame, UIParent = CreateFrame, UIParent
+local CreateFrame, UIParent, InCombatLockdown = CreateFrame, UIParent, InCombatLockdown
 local floor, max = math.floor, math.max
 local BASE_MOVEMENT_SPEED = BASE_MOVEMENT_SPEED or 7
 local GetGlidingInfo = C_PlayerInfo and C_PlayerInfo.GetGlidingInfo
@@ -15,6 +15,8 @@ local categoryID
 -- Default Settings
 local defaults = {
     showFrame = true,
+    locked = false,
+    textAlign = "LEFT",
     background = false,
     fontSize = 16,
     position = { "CENTER", "UIParent", "CENTER", 0, 0 },
@@ -43,7 +45,7 @@ if isRetail then
     }
 
     GetSpeedString = function()
-        local unit = UnitInVehicle("player") and "vehicle" or "player"
+        local unit = UnitInVehicle and UnitInVehicle("player") and "vehicle" or "player"
         local speed = GetUnitSpeed(unit)
         if GetGlidingInfo then
             local isGliding, _, fSpeed = GetGlidingInfo()
@@ -58,7 +60,7 @@ else -- Classic
     local function round(x) return floor(x + 0.5) end
 
     GetSpeedString = function()
-        local unit = UnitInVehicle("player") and "vehicle" or "player"
+        local unit = UnitInVehicle and UnitInVehicle("player") and "vehicle" or "player"
         local speed = GetUnitSpeed(unit)
         return format("%d%%", round(speed / BASE_MOVEMENT_SPEED * 100))
     end
@@ -75,7 +77,7 @@ local backdropInfo = {
     insets = { left = 1, right = 1, top = 1, bottom = 1 },
 }
 
-local f = CreateFrame("Frame", "MySpeedFrame", UIParent, "BackdropTemplate")
+local f = CreateFrame("Frame", "MoveSpeedFrame", UIParent, "BackdropTemplate")
 f:SetSize(50, 30)
 f:SetMovable(true)
 f:EnableMouse(true)
@@ -83,7 +85,9 @@ f:RegisterForDrag("LeftButton")
 f:SetScript("OnDragStart", f.StartMoving)
 f:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
-    MoveSpeedDB.position = { self:GetPoint() }
+    self:SetUserPlaced(false) -- position lives in MoveSpeedDB, not layout-cache.txt
+    local point, _, relPoint, x, y = self:GetPoint()
+    MoveSpeedDB.position = { point, "UIParent", relPoint, x, y }
 end)
 
 f.text = f:CreateFontString(nil, "ARTWORK", "GameTooltipText")
@@ -97,6 +101,15 @@ local function UpdateVisuals()
 
     f:Show()
 
+    -- Lock & Clickthrough
+    if MoveSpeedDB.locked then
+        f:EnableMouse(false)
+        f:SetMovable(false)
+    else
+        f:EnableMouse(true)
+        f:SetMovable(true)
+    end
+
     if MoveSpeedDB.background then
         f:SetBackdrop(backdropInfo)
     else
@@ -109,19 +122,27 @@ local function UpdateVisuals()
     local fontFlag = MoveSpeedDB.fontFlag == "" and nil or MoveSpeedDB.fontFlag
     f.text:SetFont(fontPath, MoveSpeedDB.fontSize, fontFlag)
 
+    -- Apply text alignment
+    local align = MoveSpeedDB.textAlign or defaults.textAlign
+    f.text:SetJustifyH(align)
+    f.text:SetJustifyV("MIDDLE")
+
     -- Apply text color
     local c = MoveSpeedDB.textColor
     f.text:SetTextColor(c.r, c.g, c.b, c.a)
 
-    -- Dynamic Height
+    -- Dynamic Height & Width
     f:SetHeight(MoveSpeedDB.fontSize + 6)
+    f:SetWidth(max(50, MoveSpeedDB.fontSize * 4))
 
     f:ClearAllPoints()
     local pos = MoveSpeedDB.position or defaults.position
-    f:SetPoint(unpack(pos))
+    f:SetPoint(pos[1], pos[2] or UIParent, pos[3], pos[4], pos[5])
 end
 
 local ticker
+local lastFrameText -- Classic only; retail strings may be secret and can't be compared
+local ldbShowingPlaceholder = false
 local StartTicker
 function StartTicker()
     if ticker then
@@ -135,20 +156,31 @@ function StartTicker()
         local str = GetSpeedString()
 
         if MoveSpeedDB.showFrame then
-            f.text:SetText(str)
-            f:SetWidth(max(50, MoveSpeedDB.fontSize * 4))
+            if isRetail then
+                f.text:SetText(str)
+            elseif str ~= lastFrameText then
+                f.text:SetText(str)
+                lastFrameText = str
+            end
         end
 
         if f.dataobject then
-            if isRetail then
-                f.dataobject.text = nil -- always clear first to avoid LDB secret comparison
-            end
             if MoveSpeedDB.safeLDBInCombat and InCombatLockdown() then
-                f.dataobject.text = "---%"
+                -- Only push the placeholder once; each assignment fires LDB callbacks
+                if not ldbShowingPlaceholder then
+                    if isRetail then
+                        f.dataobject.text = nil -- previous text may be secret; clear before assigning
+                    end
+                    f.dataobject.text = "---%"
+                    ldbShowingPlaceholder = true
+                end
             else
+                if isRetail then
+                    f.dataobject.text = nil -- always clear first to avoid LDB secret comparison
+                end
                 f.dataobject.text = str
+                ldbShowingPlaceholder = false
             end
-            f.dataobject.value = 0
         end
     end)
 end
@@ -165,12 +197,23 @@ local function SetupOptions()
     showSetting:SetValueChangedCallback(function() UpdateVisuals() end)
     Settings.CreateCheckbox(category, showSetting, "Toggle the MoveSpeed frame.")
 
+    -- Lock Frame Checkbox
+    local lockSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_Locked", "locked", MoveSpeedDB,
+        Settings.VarType.Boolean, "Lock Frame", false)
+    lockSetting:SetValueChangedCallback(function() UpdateVisuals() end)
+    Settings.CreateCheckbox(category, lockSetting, "Lock frame position and allow mouse clicks to pass through.")
+
     -- Update Rate Dropdown
     local function GetUpdateRateOptions()
         local container = Settings.CreateControlTextContainer()
         container:Add(0.1, "Fast (0.10s)")
         container:Add(0.20, "Normal (0.20s)")
         container:Add(0.5, "Slow (0.50s)")
+        -- Include a custom rate set via /movespeed rate so the dropdown isn't blank
+        local rate = MoveSpeedDB.updateRate
+        if rate and rate ~= 0.1 and rate ~= 0.2 and rate ~= 0.5 then
+            container:Add(rate, format("Custom (%.2fs)", rate))
+        end
         return container:GetData()
     end
 
@@ -205,7 +248,7 @@ local function SetupOptions()
 
     -- Background Checkbox
     local bgSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_Background", "background", MoveSpeedDB,
-        Settings.VarType.Boolean, "Enable Background", true)
+        Settings.VarType.Boolean, "Enable Background", false)
     bgSetting:SetValueChangedCallback(function() UpdateVisuals() end)
     Settings.CreateCheckbox(category, bgSetting, "Toggle the frame background.")
 
@@ -246,6 +289,20 @@ local function SetupOptions()
         Settings.VarType.String, "Font Flags", "OUTLINE")
     fontFlagSetting:SetValueChangedCallback(function() UpdateVisuals() end)
     Settings.CreateDropdown(category, fontFlagSetting, GetFontFlagOptions, "Choose the font rendering style.")
+
+    -- Text Alignment Dropdown
+    local function GetTextAlignOptions()
+        local container = Settings.CreateControlTextContainer()
+        container:Add("LEFT", "Left (Default)")
+        container:Add("CENTER", "Center")
+        container:Add("RIGHT", "Right")
+        return container:GetData()
+    end
+
+    local textAlignSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_TextAlign", "textAlign", MoveSpeedDB,
+        Settings.VarType.String, "Text Alignment", "LEFT")
+    textAlignSetting:SetValueChangedCallback(function() UpdateVisuals() end)
+    Settings.CreateDropdown(category, textAlignSetting, GetTextAlignOptions, "Choose text alignment within the frame.")
 
     -- Text Color Picker
     local function ShowColorPicker()
@@ -296,6 +353,26 @@ local function HandleSlashCommands(msg)
         MoveSpeedDB.position = defaults.position
         UpdateVisuals()
         print("|cFF00FF00MoveSpeed:|r Frame position reset.")
+    elseif cmd == "lock" then
+        MoveSpeedDB.locked = true
+        UpdateVisuals()
+        print("|cFF00FF00MoveSpeed:|r Frame locked (clickthrough enabled).")
+    elseif cmd == "unlock" then
+        MoveSpeedDB.locked = false
+        UpdateVisuals()
+        print("|cFF00FF00MoveSpeed:|r Frame unlocked.")
+    elseif cmd == "center" or cmd == "align center" then
+        MoveSpeedDB.textAlign = "CENTER"
+        UpdateVisuals()
+        print("|cFF00FF00MoveSpeed:|r Text alignment set to Center.")
+    elseif cmd == "left" or cmd == "align left" then
+        MoveSpeedDB.textAlign = "LEFT"
+        UpdateVisuals()
+        print("|cFF00FF00MoveSpeed:|r Text alignment set to Left.")
+    elseif cmd == "right" or cmd == "align right" then
+        MoveSpeedDB.textAlign = "RIGHT"
+        UpdateVisuals()
+        print("|cFF00FF00MoveSpeed:|r Text alignment set to Right.")
     elseif cmd == "bg" then
         MoveSpeedDB.background = true
         UpdateVisuals()
@@ -345,6 +422,11 @@ local function HandleSlashCommands(msg)
         else
             print("|cFF00FF00MoveSpeed Commands:|r")
             print("  /movespeed reset   - Reset position")
+            print("  /movespeed lock    - Lock frame & enable clickthrough")
+            print("  /movespeed unlock  - Unlock frame for dragging")
+            print("  /movespeed center  - Center text alignment")
+            print("  /movespeed left    - Left text alignment")
+            print("  /movespeed right   - Right text alignment")
             print("  /movespeed bg      - Show background")
             print("  /movespeed bgoff   - Hide background")
             print("  /movespeed small   - Small font")

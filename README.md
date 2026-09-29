@@ -5,8 +5,9 @@ I do not know why they ever took this away from us.
 
 ### Features
 
-- **Customization:** Change font size, color, decoration, and update frequency.
-- **Draggable:** Click and drag the frame to position it anywhere on your screen.
+- **Customization:** Change font size, color, decoration, text alignment (left, center, right), and update frequency.
+- **Draggable & Lockable:** Click and drag the frame to position it anywhere on your screen, or lock it in place.
+- **Clickthrough when Locked:** When locked, mouse clicks pass through to the game world so the frame never interferes with combat or targeting.
 - **Real-time Updates:** Displays 0% when stationary and updates instantly when moving.
 - **Data Broker Support:** Compatible with LibDataBroker (LDB) displays like TitanPanel.
 - **Dragonriding Support:** Accurately tracks speed while gliding.
@@ -35,6 +36,11 @@ Type `/movespeed` followed by a command to configure the addon without opening t
 | Command              | Description                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------- |
 | **`reset`**          | Resets the frame to the center of the screen (0,0).                                                  |
+| **`lock`**           | Locks the frame location and enables clickthrough.                                                   |
+| **`unlock`**         | Unlocks the frame so it can be moved.                                                                |
+| **`center`**         | Sets text alignment to center.                                                                       |
+| **`left`**           | Sets text alignment to left.                                                                         |
+| **`right`**          | Sets text alignment to right.                                                                        |
 | **`bg`**             | Enables the black background (useful for visibility/positioning).                                    |
 | **`bgoff`**          | Disables the background (transparent).                                                               |
 | **`small`**          | Sets font size to small (12).                                                                        |
