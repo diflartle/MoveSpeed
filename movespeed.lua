@@ -1,6 +1,9 @@
 -- 1. Constants & Locals
 local addonName = ...
 local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+local isForever = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
+-- Retail and Forever can hand us secret speeds; other Classic clients can't
+local hasSecrets = isRetail or isForever
 local C_PlayerInfo, GetUnitSpeed, UnitInVehicle = C_PlayerInfo, GetUnitSpeed, UnitInVehicle
 local GetSpeedString
 local format = format
@@ -29,9 +32,10 @@ local defaults = {
 
 -- 2. Helper Functions
 
-if isRetail then
+if hasSecrets then
     -- Thanks Veyska on Curseforge, and NinjaRobot on the discord.
     -- See: https://warcraft.wiki.gg/wiki/API_AbbreviateNumbers
+    -- Secret numbers can't do arithmetic, so AbbreviateNumbers does the scaling for us
     local SPEED_ABBREV_OPTIONS = {
         breakpointData = {
             {
@@ -141,7 +145,7 @@ local function UpdateVisuals()
 end
 
 local ticker
-local lastFrameText -- Classic only; retail strings may be secret and can't be compared
+local lastFrameText -- Only used without secrets; secret strings can't be compared
 local ldbShowingPlaceholder = false
 local StartTicker
 function StartTicker()
@@ -156,7 +160,7 @@ function StartTicker()
         local str = GetSpeedString()
 
         if MoveSpeedDB.showFrame then
-            if isRetail then
+            if hasSecrets then
                 f.text:SetText(str)
             elseif str ~= lastFrameText then
                 f.text:SetText(str)
@@ -168,14 +172,14 @@ function StartTicker()
             if MoveSpeedDB.safeLDBInCombat and InCombatLockdown() then
                 -- Only push the placeholder once; each assignment fires LDB callbacks
                 if not ldbShowingPlaceholder then
-                    if isRetail then
+                    if hasSecrets then
                         f.dataobject.text = nil -- previous text may be secret; clear before assigning
                     end
                     f.dataobject.text = "---%"
                     ldbShowingPlaceholder = true
                 end
             else
-                if isRetail then
+                if hasSecrets then
                     f.dataobject.text = nil -- always clear first to avoid LDB secret comparison
                 end
                 f.dataobject.text = str
