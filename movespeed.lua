@@ -189,126 +189,79 @@ function StartTicker()
     end)
 end
 
--- 4. Settings Panel (Retail Only)
+-- 4. Settings Panel
 local function SetupOptions()
-    if not Settings or not Settings.RegisterVerticalLayoutCategory then return end
+    if not Settings or not Settings.RegisterCanvasLayoutCategory then return end
 
-    local category, layout = Settings.RegisterVerticalLayoutCategory("MoveSpeed")
+    local panel = CreateFrame("Frame", "MoveSpeedOptionsPanel")
+    panel:Hide()
+    -- Settings apply immediately, so the panel's commit/default/refresh hooks do nothing
+    panel.OnCommit = function() end
+    panel.OnDefault = function() end
+    panel.OnRefresh = function() end
 
-    -- Show Frame Checkbox
-    local showSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_ShowFrame", "showFrame", MoveSpeedDB,
-        Settings.VarType.Boolean, "Show MoveSpeed Frame", true)
-    showSetting:SetValueChangedCallback(function() UpdateVisuals() end)
-    Settings.CreateCheckbox(category, showSetting, "Toggle the MoveSpeed frame.")
+    local checkboxes, dropdowns = {}, {}
+    local built = false
+    local y = -16
 
-    -- Lock Frame Checkbox
-    local lockSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_Locked", "locked", MoveSpeedDB,
-        Settings.VarType.Boolean, "Lock Frame", false)
-    lockSetting:SetValueChangedCallback(function() UpdateVisuals() end)
-    Settings.CreateCheckbox(category, lockSetting, "Lock frame position and allow mouse clicks to pass through.")
-
-    -- Update Rate Dropdown
-    local function GetUpdateRateOptions()
-        local container = Settings.CreateControlTextContainer()
-        container:Add(0.1, "Fast (0.10s)")
-        container:Add(0.20, "Normal (0.20s)")
-        container:Add(0.5, "Slow (0.50s)")
-        -- Include a custom rate set via /movespeed rate so the dropdown isn't blank
-        local rate = MoveSpeedDB.updateRate
-        if rate and rate ~= 0.1 and rate ~= 0.2 and rate ~= 0.5 then
-            container:Add(rate, format("Custom (%.2fs)", rate))
-        end
-        return container:GetData()
+    local function SetTooltip(frame, text)
+        frame:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(text, nil, nil, nil, nil, true)
+            GameTooltip:Show()
+        end)
+        frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
 
-    local updateRateSetting = Settings.RegisterAddOnSetting(
-        category,
-        "MoveSpeed_UpdateRate",
-        "updateRate",
-        MoveSpeedDB,
-        Settings.VarType.Number,
-        "Update Rate",
-        0.10
-    )
-    updateRateSetting:SetValueChangedCallback(function()
-        StartTicker()
-        UpdateVisuals()
-    end)
-
-    Settings.CreateDropdown(
-        category,
-        updateRateSetting,
-        GetUpdateRateOptions,
-        "Choose how often movement speed updates."
-    )
-
-    -- Safe LDB in Combat Checkbox
-    local safeLDBSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_SafeLDBInCombat",
-        "safeLDBInCombat", MoveSpeedDB,
-        Settings.VarType.Boolean, "Show ---% in LDB during combat", true)
-    safeLDBSetting:SetValueChangedCallback(function() UpdateVisuals() end)
-    Settings.CreateCheckbox(category, safeLDBSetting,
-        "If enabled, the LDB display (Bazooka, ButtonBin, etc.) shows '---%' during combat instead of live speed. This prevents display issues in some LDB display addons. The main MoveSpeed frame always shows live speed regardless.")
-
-    -- Background Checkbox
-    local bgSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_Background", "background", MoveSpeedDB,
-        Settings.VarType.Boolean, "Enable Background", false)
-    bgSetting:SetValueChangedCallback(function() UpdateVisuals() end)
-    Settings.CreateCheckbox(category, bgSetting, "Toggle the frame background.")
-
-    -- Font Size Slider
-    local fontSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_FontSize", "fontSize", MoveSpeedDB,
-        Settings.VarType.Number, "Font Size", 16)
-    fontSetting:SetValueChangedCallback(function() UpdateVisuals() end)
-    local sliderOpts = Settings.CreateSliderOptions(8, 24, 1)
-    sliderOpts:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-    Settings.CreateSlider(category, fontSetting, sliderOpts, "Change font size.")
-
-    -- Font Family Dropdown
-    local function GetFontFamilyOptions()
-        local container = Settings.CreateControlTextContainer()
-        container:Add("ARIALN.TTF", "Arial Narrow")
-        container:Add("FRIZQT__.TTF", "Friz Quadrata (Default)")
-        container:Add("MORPHEUS.TTF", "Morpheus")
-        container:Add("skurri.ttf", "Skurri")
-        return container:GetData()
+    local function AddCheckbox(key, label, tooltip, onChange)
+        local cb = CreateFrame("CheckButton", "MoveSpeedOptions_" .. key, panel, "UICheckButtonTemplate")
+        cb:SetPoint("TOPLEFT", 16, y)
+        local text = cb.Text or cb.text or _G[cb:GetName() .. "Text"]
+        text:SetText(label)
+        cb:SetScript("OnClick", function(self)
+            MoveSpeedDB[key] = self:GetChecked() and true or false
+            if onChange then onChange() end
+        end)
+        SetTooltip(cb, tooltip)
+        cb.key = key
+        checkboxes[#checkboxes + 1] = cb
+        y = y - 30
     end
 
-    local fontFamilySetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_FontFamily", "fontFamily", MoveSpeedDB,
-        Settings.VarType.String, "Font Family", "FRIZQT__.TTF")
-    fontFamilySetting:SetValueChangedCallback(function() UpdateVisuals() end)
-    Settings.CreateDropdown(category, fontFamilySetting, GetFontFamilyOptions, "Choose the font family.")
+    -- getChoices returns a list of { value, label }
+    local function AddDropdown(key, label, getChoices, onChange)
+        local fs = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        fs:SetPoint("TOPLEFT", 20, y - 6)
+        fs:SetText(label)
 
-    -- Font Flags Dropdown
-    local function GetFontFlagOptions()
-        local container = Settings.CreateControlTextContainer()
-        container:Add("", "None")
-        container:Add("MONOCHROME", "Monochrome")
-        container:Add("OUTLINE", "Outline (Default)")
-        container:Add("THICKOUTLINE", "Thick Outline")
-        return container:GetData()
+        local dd = CreateFrame("DropdownButton", nil, panel, "WowStyle1DropdownTemplate")
+        dd:SetPoint("TOPLEFT", 180, y)
+        dd:SetWidth(220)
+        dd:SetupMenu(function(_, rootDescription)
+            for _, choice in ipairs(getChoices()) do
+                rootDescription:CreateRadio(choice[2],
+                    function(value) return MoveSpeedDB[key] == value end,
+                    function(value)
+                        MoveSpeedDB[key] = value
+                        onChange()
+                    end,
+                    choice[1])
+            end
+        end)
+        dropdowns[#dropdowns + 1] = dd
+        y = y - 34
     end
 
-    local fontFlagSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_FontFlag", "fontFlag", MoveSpeedDB,
-        Settings.VarType.String, "Font Flags", "OUTLINE")
-    fontFlagSetting:SetValueChangedCallback(function() UpdateVisuals() end)
-    Settings.CreateDropdown(category, fontFlagSetting, GetFontFlagOptions, "Choose the font rendering style.")
-
-    -- Text Alignment Dropdown
-    local function GetTextAlignOptions()
-        local container = Settings.CreateControlTextContainer()
-        container:Add("LEFT", "Left (Default)")
-        container:Add("CENTER", "Center")
-        container:Add("RIGHT", "Right")
-        return container:GetData()
+    local function AddButton(label, tooltip, onClick)
+        local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+        b:SetPoint("TOPLEFT", 20, y)
+        b:SetSize(160, 24)
+        b:SetText(label)
+        b:SetScript("OnClick", onClick)
+        SetTooltip(b, tooltip)
+        y = y - 32
     end
 
-    local textAlignSetting = Settings.RegisterAddOnSetting(category, "MoveSpeed_TextAlign", "textAlign", MoveSpeedDB,
-        Settings.VarType.String, "Text Alignment", "LEFT")
-    textAlignSetting:SetValueChangedCallback(function() UpdateVisuals() end)
-    Settings.CreateDropdown(category, textAlignSetting, GetTextAlignOptions, "Choose text alignment within the frame.")
-
-    -- Text Color Picker
     local function ShowColorPicker()
         local info = {}
         local c = MoveSpeedDB.textColor or { r = 1, g = 1, b = 1, a = 1 }
@@ -336,15 +289,95 @@ local function SetupOptions()
         ColorPickerFrame:SetupColorPickerAndShow(info)
     end
 
-    layout:AddInitializer(CreateSettingsButtonInitializer("Text Color", "Text Color", ShowColorPicker,
-        "Choose the text color.", true))
+    local function Build()
+        local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+        title:SetPoint("TOPLEFT", 16, y)
+        title:SetText("MoveSpeed")
+        y = y - 30
 
-    -- Reset Button
-    layout:AddInitializer(CreateSettingsButtonInitializer("Reset Position", "Reset Position", function()
-        MoveSpeedDB.position = defaults.position
-        UpdateVisuals()
-    end, "Reset frame position.", true))
+        AddCheckbox("showFrame", "Show MoveSpeed Frame", "Toggle the MoveSpeed frame.", UpdateVisuals)
+        AddCheckbox("locked", "Lock Frame", "Lock frame position and allow mouse clicks to pass through.",
+            UpdateVisuals)
+        AddCheckbox("background", "Enable Background", "Toggle the frame background.", UpdateVisuals)
+        AddCheckbox("safeLDBInCombat", "Show ---% in LDB during combat",
+            "If enabled, the LDB display (Bazooka, ButtonBin, etc.) shows '---%' during combat instead of live speed. This prevents display issues in some LDB display addons. The main MoveSpeed frame always shows live speed regardless.")
+        y = y - 10
 
+        AddDropdown("updateRate", "Update Rate", function()
+            local choices = {
+                { 0.1, "Fast (0.10s)" },
+                { 0.2, "Normal (0.20s)" },
+                { 0.5, "Slow (0.50s)" },
+            }
+            -- Include a custom rate set via /movespeed rate so the dropdown isn't blank
+            local rate = MoveSpeedDB.updateRate
+            if rate and rate ~= 0.1 and rate ~= 0.2 and rate ~= 0.5 then
+                choices[#choices + 1] = { rate, format("Custom (%.2fs)", rate) }
+            end
+            return choices
+        end, StartTicker)
+
+        AddDropdown("fontSize", "Font Size", function()
+            local choices = {}
+            for size = 8, 24 do
+                choices[#choices + 1] = { size, tostring(size) }
+            end
+            return choices
+        end, UpdateVisuals)
+
+        AddDropdown("fontFamily", "Font Family", function()
+            return {
+                { "ARIALN.TTF", "Arial Narrow" },
+                { "FRIZQT__.TTF", "Friz Quadrata (Default)" },
+                { "MORPHEUS.TTF", "Morpheus" },
+                { "skurri.ttf", "Skurri" },
+            }
+        end, UpdateVisuals)
+
+        AddDropdown("fontFlag", "Font Flags", function()
+            return {
+                { "", "None" },
+                { "MONOCHROME", "Monochrome" },
+                { "OUTLINE", "Outline (Default)" },
+                { "THICKOUTLINE", "Thick Outline" },
+            }
+        end, UpdateVisuals)
+
+        AddDropdown("textAlign", "Text Alignment", function()
+            return {
+                { "LEFT", "Left (Default)" },
+                { "CENTER", "Center" },
+                { "RIGHT", "Right" },
+            }
+        end, UpdateVisuals)
+        y = y - 10
+
+        AddButton("Text Color", "Choose the text color.", ShowColorPicker)
+        AddButton("Reset Position", "Reset frame position.", function()
+            MoveSpeedDB.position = defaults.position
+            UpdateVisuals()
+        end)
+    end
+
+    -- Sync widgets with MoveSpeedDB (slash commands may have changed it)
+    local function Refresh()
+        for _, cb in ipairs(checkboxes) do
+            cb:SetChecked(MoveSpeedDB[cb.key])
+        end
+        for _, dd in ipairs(dropdowns) do
+            dd:GenerateMenu()
+        end
+    end
+
+    panel:SetScript("OnShow", function()
+        if not built then
+            built = true
+            Build()
+        end
+        Refresh()
+    end)
+
+    local category = Settings.RegisterCanvasLayoutCategory(panel, "MoveSpeed")
     Settings.RegisterAddOnCategory(category)
     return category
 end
@@ -421,9 +454,12 @@ local function HandleSlashCommands(msg)
         MoveSpeedDB.safeLDBInCombat = false
         print("|cFF00FF00MoveSpeed:|r LDB will show live speed during combat (may break some displays like Bazooka).")
     else
-        if Settings and Settings.OpenToCategory and categoryID then
+        if Settings and Settings.OpenToCategory and categoryID and not InCombatLockdown() then
             Settings.OpenToCategory(categoryID)
         else
+            if InCombatLockdown() then
+                print("|cFF00FF00MoveSpeed:|r Options can't be opened in combat.")
+            end
             print("|cFF00FF00MoveSpeed Commands:|r")
             print("  /movespeed reset   - Reset position")
             print("  /movespeed lock    - Lock frame & enable clickthrough")
